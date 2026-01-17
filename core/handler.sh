@@ -1015,6 +1015,68 @@ function handler_geodata_cron() {
 }
 
 # =============================================================================
+# 函数名称: handler_modify_port
+# 功能描述: 修改 Xray 暴露的端口。
+#           1. 读取用户输入的端口号。
+#           2. 验证端口号的有效性。
+#           3. 更新脚本配置文件中的端口号。
+#           4. 更新 Xray 服务端配置文件中的端口号（非 SNI 配置）。
+#           5. 重启 Xray 服务。
+#           6. 显示分享链接。
+# 参数: 无
+# 返回值: 无 (通过修改配置文件和重启服务执行操作)
+# =============================================================================
+function handler_modify_port() {
+    # 检查 Xray 是否已安装
+    local XRAY_STATUS="$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.version')"
+    if [[ -z "${XRAY_STATUS}" ]]; then
+        echo -e "${RED}[$(echo "$I18N_DATA" | jq -r '.title.error')]${NC} Xray $(echo "$I18N_DATA" | jq -r '.menu.status.not_installed')" >&2
+        return 1
+    fi
+
+    # 获取当前配置类型
+    local CONFIG_TAG="$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.tag')"
+
+    # 读取用户输入的端口号（exec_read 内部已包含验证）
+    exec_read 'port'
+    local NEW_PORT="${CONFIG_DATA[port]}"
+    
+    # 更新脚本配置文件（SCRIPT_CONFIG_PATH）中的端口号
+    SCRIPT_CONFIG="$(echo "${SCRIPT_CONFIG}" | jq --argjson port "${NEW_PORT}" '.xray.port = $port')"
+    echo "${SCRIPT_CONFIG}" >"${SCRIPT_CONFIG_PATH}" && sleep 1
+    
+    # 更新 Xray 服务端配置文件（XRAY_CONFIG_PATH）中的端口号
+    # SNI 配置使用 Unix socket，不需要更新 Xray 配置文件中的端口
+    if [[ "${CONFIG_TAG,,}" != 'sni' ]]; then
+        XRAY_CONFIG="$(jq '.' "${XRAY_CONFIG_PATH}")"
+        local inbound_count=$(echo "${XRAY_CONFIG}" | jq '.inbounds | length')
+        
+        # 遍历所有 inbound，只更新监听在 0.0.0.0 的端口（公网暴露的端口）
+        for ((i = 0; i < inbound_count; i++)); do
+            local listen_addr=$(echo "${XRAY_CONFIG}" | jq -r --argjson i "${i}" '.inbounds[$i].listen // ""')
+            local current_port=$(echo "${XRAY_CONFIG}" | jq -r --argjson i "${i}" '.inbounds[$i].port // ""')
+            
+            # 只更新监听在 0.0.0.0 且有端口的 inbound（跳过 127.0.0.1 和 Unix socket）
+            if [[ "${listen_addr}" == "0.0.0.0" && -n "${current_port}" && "${current_port}" != "null" ]]; then
+                XRAY_CONFIG="$(echo "${XRAY_CONFIG}" | jq --argjson i "${i}" --argjson port "${NEW_PORT}" '.inbounds[$i].port = $port')"
+            fi
+        done
+        
+        # 写入更新后的 Xray 配置
+        echo "${XRAY_CONFIG}" >"${XRAY_CONFIG_PATH}" && sleep 1
+    fi
+    
+    # 打印成功提示
+    echo -e "${GREEN}[$(echo "$I18N_DATA" | jq -r '.title.tip')]${NC} $(echo "$I18N_DATA" | jq -r '.title.config') $(echo "$I18N_DATA" | jq -r '.handler.script.config_update')" >&2
+    
+    # 重启 Xray 服务使更改生效
+    handler_restart
+    
+    # 显示更新后的分享链接
+    handler_share
+}
+
+# =============================================================================
 # 函数名称: handler_docker
 # 功能描述: 确保 Docker 已安装。
 #           1. 检查系统中是否存在 docker 命令。
@@ -1531,6 +1593,7 @@ function main() {
     --share) handler_share ;;                   # 显示分享链接
     --nginx-cron) handler_nginx_cron ;;         # 管理 Nginx Cron
     --geodata-cron) handler_geodata_cron ;;     # 管理 GeoData Cron
+    --modify-port) handler_modify_port ;;       # 修改端口
     --warp) handler_warp ;;                     # 管理 WARP
     --reset-warp) handler_reset_warp ;;         # 重置 WARP
     --traffic) handler_traffic ;;               # 显示流量统计
