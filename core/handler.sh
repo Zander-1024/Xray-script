@@ -1019,8 +1019,8 @@ function handler_geodata_cron() {
 # 功能描述: 修改 Xray 暴露的端口。
 #           1. 读取用户输入的端口号。
 #           2. 验证端口号的有效性。
-#           3. 更新配置文件中的端口号。
-#           4. 更新 Xray 配置文件中的端口号。
+#           3. 更新脚本配置文件中的端口号。
+#           4. 更新 Xray 服务端配置文件中的端口号（非 SNI 配置）。
 #           5. 重启 Xray 服务。
 #           6. 显示分享链接。
 # 参数: 无
@@ -1034,29 +1034,28 @@ function handler_modify_port() {
         return 1
     fi
 
+    # 获取当前配置类型
+    local CONFIG_TAG="$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.tag')"
+
     # 读取用户输入的端口号（exec_read 内部已包含验证）
     exec_read 'port'
     local NEW_PORT="${CONFIG_DATA[port]}"
     
-    # 更新脚本配置中的端口号
+    # 更新脚本配置文件（SCRIPT_CONFIG_PATH）中的端口号
     SCRIPT_CONFIG="$(echo "${SCRIPT_CONFIG}" | jq --argjson port "${NEW_PORT}" '.xray.port = $port')"
     echo "${SCRIPT_CONFIG}" >"${SCRIPT_CONFIG_PATH}" && sleep 1
     
-    # 更新 Xray 配置文件中的端口号
-    XRAY_CONFIG="$(jq '.' "${XRAY_CONFIG_PATH}")"
-    local inbound_count=$(echo "${XRAY_CONFIG}" | jq '.inbounds | length')
-    
-    # 遍历所有 inbound，更新端口（跳过 mKCP 类型）
-    for ((i = 0; i < inbound_count; i++)); do
-        local network_type=$(echo "${XRAY_CONFIG}" | jq -r --argjson i "${i}" '.inbounds[$i].streamSettings.network // "tcp"')
-        # 只更新非 mKCP 的 inbound 端口
-        if [[ "${network_type}" != "kcp" ]]; then
-            XRAY_CONFIG="$(echo "${XRAY_CONFIG}" | jq --argjson i "${i}" --argjson port "${NEW_PORT}" '.inbounds[$i].port = $port')"
-        fi
-    done
-    
-    # 写入更新后的 Xray 配置
-    echo "${XRAY_CONFIG}" >"${XRAY_CONFIG_PATH}" && sleep 1
+    # 更新 Xray 服务端配置文件（XRAY_CONFIG_PATH）中的端口号
+    # SNI 配置使用 Unix socket，不需要更新 Xray 配置文件中的端口
+    if [[ "${CONFIG_TAG,,}" != 'sni' ]]; then
+        XRAY_CONFIG="$(jq '.' "${XRAY_CONFIG_PATH}")"
+        
+        # 只更新 inbounds[1] 的端口（主服务入口，跳过 api 和 mKCP）
+        XRAY_CONFIG="$(echo "${XRAY_CONFIG}" | jq --argjson port "${NEW_PORT}" '.inbounds[1].port = $port')"
+        
+        # 写入更新后的 Xray 配置
+        echo "${XRAY_CONFIG}" >"${XRAY_CONFIG_PATH}" && sleep 1
+    fi
     
     # 打印成功提示
     echo -e "${GREEN}[$(echo "$I18N_DATA" | jq -r '.title.tip')]${NC} $(echo "$I18N_DATA" | jq -r '.title.config') $(echo "$I18N_DATA" | jq -r '.handler.script.config_update')" >&2
