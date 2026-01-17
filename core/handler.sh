@@ -1049,9 +1049,18 @@ function handler_modify_port() {
     # SNI 配置使用 Unix socket，不需要更新 Xray 配置文件中的端口
     if [[ "${CONFIG_TAG,,}" != 'sni' ]]; then
         XRAY_CONFIG="$(jq '.' "${XRAY_CONFIG_PATH}")"
+        local inbound_count=$(echo "${XRAY_CONFIG}" | jq '.inbounds | length')
         
-        # 只更新 inbounds[1] 的端口（主服务入口，跳过 api 和 mKCP）
-        XRAY_CONFIG="$(echo "${XRAY_CONFIG}" | jq --argjson port "${NEW_PORT}" '.inbounds[1].port = $port')"
+        # 遍历所有 inbound，只更新监听在 0.0.0.0 的端口（公网暴露的端口）
+        for ((i = 0; i < inbound_count; i++)); do
+            local listen_addr=$(echo "${XRAY_CONFIG}" | jq -r --argjson i "${i}" '.inbounds[$i].listen // ""')
+            local current_port=$(echo "${XRAY_CONFIG}" | jq -r --argjson i "${i}" '.inbounds[$i].port // ""')
+            
+            # 只更新监听在 0.0.0.0 且有端口的 inbound（跳过 127.0.0.1 和 Unix socket）
+            if [[ "${listen_addr}" == "0.0.0.0" && -n "${current_port}" && "${current_port}" != "null" ]]; then
+                XRAY_CONFIG="$(echo "${XRAY_CONFIG}" | jq --argjson i "${i}" --argjson port "${NEW_PORT}" '.inbounds[$i].port = $port')"
+            fi
+        done
         
         # 写入更新后的 Xray 配置
         echo "${XRAY_CONFIG}" >"${XRAY_CONFIG_PATH}" && sleep 1
