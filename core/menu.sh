@@ -280,6 +280,8 @@ function menu_config() {
     echo -e "${GREEN}4.${NC} $(echo "$I18N_DATA" | jq -r ".${CUR_FILE}.config_management.option4")"
     # 打印选项 5
     echo -e "${GREEN}5.${NC} $(echo "$I18N_DATA" | jq -r ".${CUR_FILE}.config_management.option5")"
+    # 打印选项 6
+    echo -e "${GREEN}6.${NC} $(echo "$I18N_DATA" | jq -r ".${CUR_FILE}.config_management.option6")"
 
     # 打印分隔线
     echo -e "------------------------------------------------------"
@@ -291,6 +293,8 @@ function menu_config() {
     echo -e "3. $(echo "$I18N_DATA" | jq -r ".${CUR_FILE}.config_management.info3")"
     # 打印选项 4 的说明信息
     echo -e "4. $(echo "$I18N_DATA" | jq -r ".${CUR_FILE}.config_management.info4")"
+    # 打印选项 5 的说明信息
+    echo -e "5. $(echo "$I18N_DATA" | jq -r ".${CUR_FILE}.config_management.info5")"
     # 打印分隔线
     echo -e "------------------------------------------------------"
 }
@@ -399,9 +403,10 @@ function print_status() {
     # 读取脚本配置文件的完整 JSON 内容
     local SCRIPT_CONFIG=$(jq '.' "${SCRIPT_CONFIG_PATH}")
 
-    # 从配置中提取 Xray 版本、配置标签和 WARP 状态
+    # 从配置中提取 Xray 版本、配置标签、端口和 WARP 状态
     local XRAY_VERSION=$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.version')
     local CONFIG_TAG=$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.tag')
+    local XRAY_PORT=$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.port')
     local WARP_STATUS=$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.warp')
 
     # 从 i18n 数据中读取状态描述文本
@@ -414,6 +419,8 @@ function print_status() {
     [[ ${XRAY_VERSION} ]] && XRAY_VERSION="${GREEN}${XRAY_VERSION}${NC}" || XRAY_VERSION="${RED}${not_installed}${NC}"
     # 根据配置标签是否存在，设置显示颜色和文本
     [[ ${CONFIG_TAG} ]] && CONFIG_TAG="${GREEN}${CONFIG_TAG}${NC}" || CONFIG_TAG="${RED}${not_configured}${NC}"
+    # 根据端口是否存在，设置显示颜色和文本
+    [[ ${XRAY_PORT} && ${XRAY_PORT} != "null" ]] && XRAY_PORT="${GREEN}${XRAY_PORT}${NC}" || XRAY_PORT=""
     # 根据 WARP 状态 (1 或 0)，设置显示颜色和文本
     [[ ${WARP_STATUS} -eq 1 ]] && WARP_STATUS="${GREEN}${enabled}${NC}" || WARP_STATUS="${RED}${disabled}${NC}"
 
@@ -421,6 +428,8 @@ function print_status() {
     echo -e "------------------------------------------------------"
     echo -e "Xray       : ${XRAY_VERSION}"
     echo -e "CONFIG     : ${CONFIG_TAG}"
+    # 仅在端口存在时才打印
+    [[ ${XRAY_PORT} ]] && echo -e "PORT       : ${XRAY_PORT}"
     echo -e "WARP Proxy : ${WARP_STATUS}"
     echo -e "------------------------------------------------------"
     echo

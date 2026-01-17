@@ -383,7 +383,8 @@ function processes_config() {
     2) processes_routing ;;             # 选择 2：进入路由规则配置流程
     3) processes_sni_config ;;          # 选择 3：进入 SNI 配置流程
     4) exec_handler '--geodata-cron' ;; # 选择 4：配置 GeoData Cron 任务
-    5) processes_language ;;            # 选择 5：设置语言
+    5) exec_handler '--modify-port' ;;  # 选择 5：修改端口
+    6) processes_language ;;            # 选择 6：设置语言
     *) exit 0 ;;                        # 其他情况：退出脚本
     esac
 }

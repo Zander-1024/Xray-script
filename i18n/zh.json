@@ -86,11 +86,13 @@
       "option2": "分流管理",
       "option3": "SNI 配置管理",
       "option4": "开/关 geodata 自动更新",
-      "option5": "设置语言",
+      "option5": "修改端口",
+      "option6": "设置语言",
       "info1": "更新配置功能为整个配置的更新",
       "info2": "管理屏蔽或 WARP 分流",
       "info3": "包含 Nginx 更新，修改域名，修改 Web 配置等",
-      "info4": "geodata 由 https://github.com/Loyalsoldier/v2ray-rules-dat  提供"
+      "info4": "geodata 由 https://github.com/Loyalsoldier/v2ray-rules-dat  提供",
+      "info5": "修改 Xray 暴露的端口（需要重启服务生效）"
     },
     "route_management": {
       "title": "自定义分流",

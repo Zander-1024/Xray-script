@@ -86,11 +86,13 @@
       "option2": "Route Management",
       "option3": "SNI Configuration",
       "option4": "Enable/Disable geodata auto-update",
-      "option5": "Language",
+      "option5": "Modify Port",
+      "option6": "Language",
       "info1": "Full config update",
       "info2": "Manage blocking or WARP routing",
       "info3": "Includes Nginx update, domain change, web config",
-      "info4": "geodata provided by  https://github.com/Loyalsoldier/v2ray-rules-dat "
+      "info4": "geodata provided by  https://github.com/Loyalsoldier/v2ray-rules-dat ",
+      "info5": "Modify Xray exposed port (service restart required)"
     },
     "route_management": {
       "title": "Custom Routing",
