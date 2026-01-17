@@ -1034,19 +1034,9 @@ function handler_modify_port() {
         return 1
     fi
 
-    # 读取用户输入的端口号
-    local NEW_PORT="$(exec_read '--port')"
-    
-    # 如果用户没有输入，保持原值
-    if [[ -z "${NEW_PORT}" ]]; then
-        local CURRENT_PORT="$(echo "${SCRIPT_CONFIG}" | jq -r '.xray.port')"
-        NEW_PORT="${CURRENT_PORT}"
-    fi
-    
-    # 验证端口号
-    if ! exec_check '--port' "${NEW_PORT}"; then
-        return 1
-    fi
+    # 读取用户输入的端口号（exec_read 内部已包含验证）
+    exec_read 'port'
+    local NEW_PORT="${CONFIG_DATA[port]}"
     
     # 更新脚本配置中的端口号
     SCRIPT_CONFIG="$(echo "${SCRIPT_CONFIG}" | jq --argjson port "${NEW_PORT}" '.xray.port = $port')"
